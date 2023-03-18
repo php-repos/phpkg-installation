@@ -19,7 +19,7 @@ cli_path=$packages_path/cli
 datatype_path=$packages_path/datatype
 file_manager_path=$packages_path/file-manager
 
-phpkg_version="v1.1.0"
+phpkg_version="v1.2.0"
 cli_version="v1.0.1"
 datatype_version="v1.0.1"
 file_manager_version="v2.0.0"
