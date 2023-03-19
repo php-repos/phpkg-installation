@@ -18,11 +18,13 @@ packages_path=$root_path/Packages/php-repos
 cli_path=$packages_path/cli
 datatype_path=$packages_path/datatype
 file_manager_path=$packages_path/file-manager
+control_flow_path=$packages_path/control-flow
 
-phpkg_version="v1.2.0"
+phpkg_version="v1.2.1"
 cli_version="v1.0.1"
 datatype_version="v1.0.1"
 file_manager_version="v2.0.0"
+control_flow_version="v1.0.0"
 
 if ! command -v php &> /dev/null
 then
@@ -53,6 +55,9 @@ curl -s -L https://github.com/php-repos/datatype/zipball/$datatype_version > "$t
 echo -e "Downloading FileManager version ${GREEN}${file_manager_version}${DEFAULT_COLOR}"
 curl -s -L https://github.com/php-repos/file-manager/zipball/$file_manager_version > "$temp_path"/file-manager.zip
 
+echo -e "Downloading ControlFlow version ${GREEN}${control_flow_version}${DEFAULT_COLOR}"
+curl -s -L https://github.com/php-repos/control-flow/zipball/$control_flow_version > "$temp_path"/control-flow.zip
+
 echo -e "${GREEN}Download finished${DEFAULT_COLOR}"
 
 echo "Setting up..."
@@ -75,6 +80,10 @@ mv "$temp_path/$(ls "$temp_path" | grep php-repos-datatype)" "$datatype_path"
 echo "Setting up FileManager ..."
 unzip -q -o "$temp_path"/file-manager.zip -d "$temp_path"
 mv "$temp_path/$(ls "$temp_path" | grep php-repos-file-manager)" "$file_manager_path"
+
+echo "Setting up ControlFlow ..."
+unzip -q -o "$temp_path"/control-flow.zip -d "$temp_path"
+mv "$temp_path/$(ls "$temp_path" | grep php-repos-control-flow)" "$control_flow_path"
 
 echo "Make credential file"
 cp "$root_path"/credentials.example.json "$root_path"/credentials.json
