@@ -20,7 +20,7 @@ datatype_path=$packages_path/datatype
 file_manager_path=$packages_path/file-manager
 control_flow_path=$packages_path/control-flow
 
-phpkg_version="v1.2.2"
+phpkg_version="v1.2.3"
 cli_version="v1.1.0"
 datatype_version="v1.0.1"
 file_manager_version="v2.0.0"
