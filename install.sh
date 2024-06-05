@@ -21,9 +21,9 @@ file_manager_path=$packages_path/file-manager
 control_flow_path=$packages_path/control-flow
 console_path=$packages_path/console
 
-phpkg_version="v1.5.0"
+phpkg_version="v1.6.0"
 cli_version="v2.0.0"
-datatype_version="v1.1.0"
+datatype_version="v1.2.0"
 file_manager_version="v2.0.3"
 control_flow_version="v1.0.0"
 console_version="v1.0.1"
@@ -111,11 +111,5 @@ else
 fi
 
 echo -e "${YELLOW}- Please open a new terminal to start working with phpkg.${DEFAULT_COLOR}"
-if [ -z "${GITHUB_TOKEN}" ];
-then
-  echo -e "${YELLOW}- Please add your credential using the credential command. Visit https://phpkg.com/documentations/credential-command ${DEFAULT_COLOR}"
-else
-  echo -e "${GREEN}- GITHUB_TOKEN found in environment variables. No need to add token for GitHub."
-fi
 
 echo -e "\n${GREEN}Installation finished successfully. Enjoy.${DEFAULT_COLOR}"
