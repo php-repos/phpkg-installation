@@ -21,12 +21,12 @@ file_manager_path=$packages_path/file-manager
 control_flow_path=$packages_path/control-flow
 console_path=$packages_path/console
 
-phpkg_version="v1.7.2"
+phpkg_version="v1.8.0"
 cli_version="v2.0.0"
 datatype_version="v1.2.0"
 file_manager_version="v2.0.3"
 control_flow_version="v1.0.0"
-console_version="v1.0.1"
+console_version="v1.1.0"
 
 if ! command -v php &> /dev/null
 then
