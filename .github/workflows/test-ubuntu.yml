@@ -1,0 +1,29 @@
+name: run-ubuntu
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest]
+
+    name: test ubuntu
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install phpkg
+        run: bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/${{ github.event.pull_request.head.ref || github.ref_name }}/install.sh)"
+
+      - name: Test phpkg
+        run: ~/.phpkg/phpkg credential github.com ${{ secrets.GITHUB_TOKEN }}

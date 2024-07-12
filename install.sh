@@ -28,11 +28,50 @@ file_manager_version="v2.0.3"
 control_flow_version="v1.0.0"
 console_version="v1.1.0"
 
+# Check if PHP is installed
 if ! command -v php &> /dev/null
 then
-    echo "PHP if not installed"
-    exit
+    echo "PHP is not installed"
+
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        OS=$ID
+
+        case "$OS" in
+            ubuntu|debian)
+                echo "Detected Ubuntu/Debian"
+                sudo apt install -y php
+                ;;
+            fedora)
+                echo "Detected Fedora"
+                sudo dnf install -y php
+                ;;
+            arch)
+                echo "Detected Arch Linux"
+                sudo pacman -Syu --noconfirm
+                sudo pacman -S --noconfirm php
+                ;;
+            alpine)
+                echo "Detected Alpine Linux"
+                apk update
+                apk add php
+                ;;
+        esac
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "Detected macOS"
+        if ! command -v brew &> /dev/null; then
+            echo "Homebrew is not installed. Installing Homebrew first."
+            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        fi
+        brew update
+        brew install php
+    else
+        echo "Unsupported or unrecognized OS. Please install PHP manually. Make sure php-curl and php-unzip are enabled in modules."
+        exit 1
+    fi
 fi
+
+
 PHP_VERSION=$(php --version | grep "PHP "\[1-9] -o)
 
 if [ "${PHP_VERSION}" == "PHP 8" ]
@@ -101,13 +140,19 @@ DEFAULT_SHELL=$(echo "$SHELL")
 
 EXPORT_PATH='export PATH="$PATH:'$root_path'"'
 
-if [[ "$DEFAULT_SHELL" =~ .*"zsh".* ]]
-then
-  echo "Add phpkg to zsh"
-  echo $EXPORT_PATH >> $HOME/.zshrc
+# Add to initialization file based on shell
+if echo "$DEFAULT_SHELL" | grep -q "zsh"; then
+    echo "Add phpkg to zsh"
+    echo "$EXPORT_PATH" >> "$HOME/.zshrc"
+elif echo "$DEFAULT_SHELL" | grep -q "bash"; then
+    echo "Add phpkg to bash"
+    echo "$EXPORT_PATH" >> "$HOME/.bashrc"
+elif echo "$DEFAULT_SHELL" | grep -q "sh"; then
+    echo "Add phpkg to sh"
+    echo "$EXPORT_PATH" >> "$HOME/.profile"  # Use .profile for sh in Alpine
 else
-  echo "Add phpkg to bash"
-  echo $EXPORT_PATH >> $HOME/.bashrc
+    echo "Unsupported shell detected: $DEFAULT_SHELL"
+    echo "$EXPORT_PATH" >> "$HOME/.profile"  # Fallback to .profile for unsupported shells
 fi
 
 echo -e "${YELLOW}- Please open a new terminal to start working with phpkg.${DEFAULT_COLOR}"
