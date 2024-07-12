@@ -1,0 +1,20 @@
+FROM archlinux:latest
+
+# Install PHP and necessary extensions
+RUN pacman -Syu --noconfirm && \
+    pacman -S --noconfirm curl unzip sudo
+
+# Set the working directory
+WORKDIR /workspace
+
+# Copy the current directory contents into the container at /workspace
+COPY . /workspace
+
+# Define build argument
+ARG BRANCH_NAME=master
+
+# Install phpkg from the specified branch
+RUN bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/$BRANCH_NAME/install.sh)"
+
+# Run the test command
+CMD ["/root/.phpkg/phpkg", "credential", "github.com", "${GITHUB_TOKEN}"]
