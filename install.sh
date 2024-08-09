@@ -21,7 +21,7 @@ file_manager_path=$packages_path/file-manager
 control_flow_path=$packages_path/control-flow
 console_path=$packages_path/console
 
-phpkg_version="v1.9.0"
+phpkg_version="v1.9.1"
 cli_version="v2.0.0"
 datatype_version="v1.2.0"
 file_manager_version="v2.0.3"
