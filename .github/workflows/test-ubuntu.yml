@@ -23,7 +23,9 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Install phpkg
-        run: bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/${{ github.event.pull_request.head.ref || github.ref_name }}/install.sh)"
+        run: |
+          bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/${{ github.event.pull_request.head.ref || github.ref_name }}/install.sh)"
+          echo "PATH=\$PATH:$HOME/.phpkg" >> $GITHUB_PATH
 
       - name: Test phpkg
-        run: ~/.phpkg/phpkg credential github.com ${{ secrets.GITHUB_TOKEN }}
+        run: phpkg credential github.com ${{ secrets.GITHUB_TOKEN }}
