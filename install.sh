@@ -138,7 +138,9 @@ cp "$root_path"/credentials.example.json "$root_path"/credentials.json
 
 DEFAULT_SHELL=$(echo "$SHELL")
 
-EXPORT_PATH='export PATH="$PATH:'$root_path'"'
+EXPORT_PATH="export PATH=\"\$PATH:$root_path\""
+
+eval $EXPORT_PATH
 
 # Add to initialization file based on shell
 if echo "$DEFAULT_SHELL" | grep -q "zsh"; then
@@ -154,7 +156,5 @@ else
     echo "Unsupported shell detected: $DEFAULT_SHELL"
     echo "$EXPORT_PATH" >> "$HOME/.profile"  # Fallback to .profile for unsupported shells
 fi
-
-echo -e "${YELLOW}- Please open a new terminal to start working with phpkg.${DEFAULT_COLOR}"
 
 echo -e "\n${GREEN}Installation finished successfully. Enjoy.${DEFAULT_COLOR}"
