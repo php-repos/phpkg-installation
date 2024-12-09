@@ -60,15 +60,14 @@ then
     fi
 fi
 
-PHP_VERSION=$(php --version | grep "PHP "\[1-9] -o)
+PHP_VERSION=$(php -r 'echo PHP_VERSION;')
 
-if [ "${PHP_VERSION}" == "PHP 8" ]
+if [[ "$(printf '%s\n' "8.2" "$PHP_VERSION" | sort -V | head -n1)" == "8.2" ]]
 then
-  PHP_VERSION=$(php --version | grep "PHP "\[1-9])
-  echo "${PHP_VERSION} detected"
+    echo -e "${GREEN}PHP ${PHP_VERSION} detected${DEFAULT_COLOR}"
 else
-  echo -e "${RED}Required PHP version not detected! phpkg needs PHP >= 8.0 ${DEFAULT_COLOR}"
-  exit
+    echo -e "${RED}Required PHP version not detected! phpkg needs PHP >= 8.2 ${DEFAULT_COLOR}"
+    exit 1
 fi
 
 echo -e "Installing phpkg version: ${GREEN}${phpkg_version}${DEFAULT_COLOR} ..."
