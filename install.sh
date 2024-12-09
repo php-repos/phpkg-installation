@@ -62,11 +62,11 @@ fi
 
 PHP_VERSION=$(php -r 'echo PHP_VERSION;')
 
-if [[ "$(printf '%s\n' "8.2" "$PHP_VERSION" | sort -V | head -n1)" == "8.2" ]]
+if [[ "$(printf '%s\n' "8.1" "$PHP_VERSION" | sort -V | head -n1)" == "8.1" ]]
 then
     echo -e "${GREEN}PHP ${PHP_VERSION} detected${DEFAULT_COLOR}"
 else
-    echo -e "${RED}Required PHP version not detected! Detected version: PHP ${PHP_VERSION}. phpkg needs PHP >= 8.2.${DEFAULT_COLOR}"
+    echo -e "${RED}Required PHP version not detected! Detected version: PHP ${PHP_VERSION}. phpkg needs PHP >= 8.1.${DEFAULT_COLOR}"
     exit 1
 fi
 
