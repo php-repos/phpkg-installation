@@ -15,7 +15,7 @@ temp_path=$(mktemp -d)
 
 root_path=$HOME/.phpkg
 
-phpkg_version="v2.1.1"
+phpkg_version="v2.2.0"
 
 # Check if PHP is installed
 if ! command -v php &> /dev/null
