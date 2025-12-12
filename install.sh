@@ -101,9 +101,13 @@ then
                 
                 # Try to install PHP and extensions with detected or common versions
                 INSTALLED=false
+                INSTALLED_VER=""
                 if [ -n "$PHP_VER" ] && [ "$PHP_VER" != "8" ]; then
                     # Try detected version first
-                    apk add "php${PHP_VER}" "php${PHP_VER}-mbstring" "php${PHP_VER}-curl" "php${PHP_VER}-zip" 2>/dev/null && INSTALLED=true
+                    if apk add "php${PHP_VER}" "php${PHP_VER}-mbstring" "php${PHP_VER}-curl" "php${PHP_VER}-zip" 2>/dev/null; then
+                        INSTALLED=true
+                        INSTALLED_VER="$PHP_VER"
+                    fi
                 fi
                 
                 # Fallback: try common versions if not installed yet
@@ -111,6 +115,7 @@ then
                     for ver in 83 82 81 8; do
                         if apk add "php${ver}" "php${ver}-mbstring" "php${ver}-curl" "php${ver}-zip" 2>/dev/null; then
                             INSTALLED=true
+                            INSTALLED_VER="$ver"
                             break
                         fi
                     done
@@ -118,6 +123,14 @@ then
                 
                 if [ "$INSTALLED" = false ]; then
                     echo "Warning: Could not install PHP with extensions. You may need to install manually."
+                else
+                    # On Alpine, php83 installs /usr/bin/php83, not /usr/bin/php
+                    # Create a symlink if php command is not available
+                    if ! command -v php &> /dev/null && [ -n "$INSTALLED_VER" ]; then
+                        if [ -f "/usr/bin/php${INSTALLED_VER}" ]; then
+                            ln -sf "/usr/bin/php${INSTALLED_VER}" /usr/bin/php
+                        fi
+                    fi
                 fi
                 ;;
         esac
