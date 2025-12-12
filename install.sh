@@ -75,10 +75,15 @@ if ! command -v php &> /dev/null; then
     if [ -f /etc/os-release ]; then
         . /etc/os-release
         if [ "$ID" = "alpine" ]; then
-            for ver in 83 82 81 8; do
+            for ver in 85 84 83 82 81; do
                 if [ -f "/usr/bin/php${ver}" ]; then
                     # Create symlink so 'php' command is available (needed for phpkg script shebang)
-                    ln -sf "/usr/bin/php${ver}" /usr/bin/php
+                    # Check if we need sudo for symlink creation
+                    if [ "$(id -u)" != "0" ] && command -v sudo &> /dev/null; then
+                        sudo ln -sf "/usr/bin/php${ver}" /usr/bin/php
+                    else
+                        ln -sf "/usr/bin/php${ver}" /usr/bin/php
+                    fi
                     PHP_CMD="php"
                     break
                 fi
@@ -112,7 +117,19 @@ if [ "$PHP_CMD" = "php" ] && ! command -v php &> /dev/null; then
                 ;;
             alpine)
                 echo "Detected Alpine Linux"
-                apk update
+                # Determine if we need sudo (check if we're root or if sudo is available)
+                APK_CMD="apk"
+                if [ "$(id -u)" != "0" ]; then
+                    if command -v sudo &> /dev/null; then
+                        APK_CMD="sudo apk"
+                    else
+                        echo "Error: This script needs root privileges or sudo to install packages on Alpine Linux."
+                        echo "Please run as root or install sudo first."
+                        exit 1
+                    fi
+                fi
+                
+                $APK_CMD update
                 # Alpine uses versioned package names like php83-mbstring for PHP 8.3
                 # Try to detect PHP version if available, otherwise try common versions
                 PHP_VER=""
@@ -125,16 +142,16 @@ if [ "$PHP_CMD" = "php" ] && ! command -v php &> /dev/null; then
                 INSTALLED_VER=""
                 if [ -n "$PHP_VER" ] && [ "$PHP_VER" != "8" ]; then
                     # Try detected version first
-                    if apk add "php${PHP_VER}" "php${PHP_VER}-mbstring" "php${PHP_VER}-curl" "php${PHP_VER}-zip" 2>/dev/null; then
+                    if $APK_CMD add --no-cache "php${PHP_VER}" "php${PHP_VER}-mbstring" "php${PHP_VER}-curl" "php${PHP_VER}-zip"; then
                         INSTALLED=true
                         INSTALLED_VER="$PHP_VER"
                     fi
                 fi
                 
-                # Fallback: try common versions if not installed yet
+                # Fallback: try common versions if not installed yet (newest first)
                 if [ "$INSTALLED" = false ]; then
-                    for ver in 83 82 81 8; do
-                        if apk add "php${ver}" "php${ver}-mbstring" "php${ver}-curl" "php${ver}-zip" 2>/dev/null; then
+                    for ver in 85 84 83 82 81; do
+                        if $APK_CMD add --no-cache "php${ver}" "php${ver}-mbstring" "php${ver}-curl" "php${ver}-zip"; then
                             INSTALLED=true
                             INSTALLED_VER="$ver"
                             break
@@ -143,13 +160,19 @@ if [ "$PHP_CMD" = "php" ] && ! command -v php &> /dev/null; then
                 fi
                 
                 if [ "$INSTALLED" = false ]; then
-                    echo "Warning: Could not install PHP with extensions. You may need to install manually."
+                    echo "Error: Could not install PHP with extensions. Installation failed."
+                    exit 1
                 else
                     # On Alpine, php83 installs /usr/bin/php83, not /usr/bin/php
                     # Create a symlink so 'php' command is available (needed for phpkg script shebang)
                     if [ -n "$INSTALLED_VER" ] && [ -f "/usr/bin/php${INSTALLED_VER}" ]; then
                         # Create symlink so phpkg script can execute (it uses #!/usr/bin/env php)
-                        ln -sf "/usr/bin/php${INSTALLED_VER}" /usr/bin/php
+                        # Use sudo if needed (APK_CMD already determined above)
+                        if [ "$(id -u)" != "0" ] && command -v sudo &> /dev/null; then
+                            sudo ln -sf "/usr/bin/php${INSTALLED_VER}" /usr/bin/php
+                        else
+                            ln -sf "/usr/bin/php${INSTALLED_VER}" /usr/bin/php
+                        fi
                         PHP_CMD="php"
                     fi
                 fi
@@ -199,6 +222,17 @@ for ext in $php_extensions; do
                     ;;
                 alpine)
                     # Alpine uses versioned package names
+                    # Determine if we need sudo (check if we're root or if sudo is available)
+                    APK_CMD="apk"
+                    if [ "$(id -u)" != "0" ]; then
+                        if command -v sudo &> /dev/null; then
+                            APK_CMD="sudo apk"
+                        else
+                            echo "Error: This script needs root privileges or sudo to install packages on Alpine Linux."
+                            exit 1
+                        fi
+                    fi
+                    
                     PHP_VER=""
                     if command -v php &> /dev/null; then
                         PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
@@ -206,13 +240,13 @@ for ext in $php_extensions; do
                     
                     INSTALLED=false
                     if [ -n "$PHP_VER" ] && [ "$PHP_VER" != "8" ]; then
-                        apk add "php${PHP_VER}-${ext}" 2>/dev/null && INSTALLED=true
+                        $APK_CMD add --no-cache "php${PHP_VER}-${ext}" && INSTALLED=true
                     fi
                     
-                    # Fallback: try common versions if not installed yet
+                    # Fallback: try common versions if not installed yet (newest first)
                     if [ "$INSTALLED" = false ]; then
-                        for ver in 83 82 81 8; do
-                            if apk add "php${ver}-${ext}" 2>/dev/null; then
+                        for ver in 85 84 83 82 81; do
+                            if $APK_CMD add --no-cache "php${ver}-${ext}"; then
                                 INSTALLED=true
                                 break
                             fi
