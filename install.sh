@@ -15,6 +15,9 @@ temp_path=$(mktemp -d)
 
 root_path=$HOME/.phpkg
 
+# PHP command wrapper - will be set to actual PHP binary if needed
+PHP_CMD="php"
+
 # Load configuration from config.json with fallback values
 # Try to find config.json in the same directory as the script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
@@ -66,8 +69,26 @@ if [ -n "$TEMP_CONFIG_FILE" ] && [ -f "$TEMP_CONFIG_FILE" ]; then
 fi
 
 # Check if PHP is installed
-if ! command -v php &> /dev/null
-then
+# On Alpine, PHP might be installed as php83, php82, etc.
+if ! command -v php &> /dev/null; then
+    # Check for versioned PHP binaries (Alpine Linux)
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        if [ "$ID" = "alpine" ]; then
+            for ver in 83 82 81 8; do
+                if [ -f "/usr/bin/php${ver}" ]; then
+                    PHP_CMD="/usr/bin/php${ver}"
+                    # Try to create symlink for convenience
+                    ln -sf "/usr/bin/php${ver}" /usr/bin/php 2>/dev/null || true
+                    break
+                fi
+            done
+        fi
+    fi
+fi
+
+# Final check - if PHP_CMD is still "php", verify it exists
+if [ "$PHP_CMD" = "php" ] && ! command -v php &> /dev/null; then
     echo "PHP is not installed"
 
     if [ -f /etc/os-release ]; then
@@ -125,11 +146,9 @@ then
                     echo "Warning: Could not install PHP with extensions. You may need to install manually."
                 else
                     # On Alpine, php83 installs /usr/bin/php83, not /usr/bin/php
-                    # Create a symlink if php command is not available
-                    if ! command -v php &> /dev/null && [ -n "$INSTALLED_VER" ]; then
-                        if [ -f "/usr/bin/php${INSTALLED_VER}" ]; then
-                            ln -sf "/usr/bin/php${INSTALLED_VER}" /usr/bin/php
-                        fi
+                    # Use the versioned binary directly (full path)
+                    if [ -n "$INSTALLED_VER" ] && [ -f "/usr/bin/php${INSTALLED_VER}" ]; then
+                        PHP_CMD="/usr/bin/php${INSTALLED_VER}"
                     fi
                 fi
                 ;;
@@ -156,7 +175,7 @@ fi
 echo "Checking required PHP extensions..."
 missing_extensions=""
 for ext in $php_extensions; do
-    if ! php -m | grep -q "^${ext}$"; then
+    if ! $PHP_CMD -m 2>/dev/null | grep -qE "^\s*${ext}\s*$"; then
         echo -e "${YELLOW}Warning: ${ext} extension is not loaded. Attempting to install...${DEFAULT_COLOR}"
         missing_extensions="$missing_extensions $ext"
         
@@ -208,13 +227,13 @@ done
 
 # Verify all extensions are now loaded
 for ext in $php_extensions; do
-    if ! php -m | grep -qE "^\s*${ext}\s*$"; then
+    if ! $PHP_CMD -m 2>/dev/null | grep -qE "^\s*${ext}\s*$"; then
         echo -e "${RED}Error: ${ext} extension is required but could not be installed. Please install it manually.${DEFAULT_COLOR}"
         exit 1
     fi
 done
 
-PHP_VERSION=$(php -r 'echo PHP_VERSION;')
+PHP_VERSION=$($PHP_CMD -r 'echo PHP_VERSION;' 2>/dev/null)
 
 if [[ "$(printf '%s\n' "$php_min_version" "$PHP_VERSION" | sort -V | head -n1)" == "$php_min_version" ]]
 then
