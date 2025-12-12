@@ -8,7 +8,63 @@ function Write-ErrorMsg { param($Message) Write-Host $Message -ForegroundColor R
 function Write-Warning { param($Message) Write-Host $Message -ForegroundColor Yellow }
 function Write-Info { param($Message) Write-Host $Message }
 
-$phpkgVersion = "v2.2.2"
+# Load configuration from config.json with fallback values
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$configFile = Join-Path $scriptDir "config.json"
+
+# Fallback values (used when config.json is not available)
+$fallbackPhpkgVersion = "v2.2.2"
+$fallbackPhpMinVersion = "8.1"
+$fallbackPhpExtensions = @("mbstring", "curl", "zip")
+
+$tempConfigFile = $null
+if (-not (Test-Path $configFile)) {
+    # If running from curl/download, try to download config.json from the same repository
+    $tempConfigFile = Join-Path $env:TEMP "phpkg-config-$(New-Guid).json"
+    try {
+        Invoke-WebRequest -Uri "https://raw.github.com/php-repos/phpkg-installation/master/config.json" -OutFile $tempConfigFile -UseBasicParsing -ErrorAction Stop
+        if (Test-Path $tempConfigFile) {
+            $configFile = $tempConfigFile
+        } else {
+            $configFile = $null
+        }
+    } catch {
+        # Config file not available, will use fallback values
+        $configFile = $null
+    }
+}
+
+if ($configFile -and (Test-Path $configFile)) {
+    try {
+        $config = Get-Content -Path $configFile -Raw | ConvertFrom-Json
+        $phpkgVersion = $config.phpkg_version
+        $phpMinVersion = $config.php_min_version
+        $phpExtensions = $config.php_extensions
+        
+        # Use fallback if parsing failed or values are missing
+        if (-not $phpkgVersion -or -not $phpMinVersion -or -not $phpExtensions) {
+            $phpkgVersion = $fallbackPhpkgVersion
+            $phpMinVersion = $fallbackPhpMinVersion
+            $phpExtensions = $fallbackPhpExtensions
+        }
+    } catch {
+        # Parsing failed, use fallback values
+        $phpkgVersion = $fallbackPhpkgVersion
+        $phpMinVersion = $fallbackPhpMinVersion
+        $phpExtensions = $fallbackPhpExtensions
+    } finally {
+        # Cleanup temp config file if we downloaded it
+        if ($tempConfigFile -and (Test-Path $tempConfigFile)) {
+            Remove-Item -Path $tempConfigFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+} else {
+    # Config file not available, use fallback values
+    $phpkgVersion = $fallbackPhpkgVersion
+    $phpMinVersion = $fallbackPhpMinVersion
+    $phpExtensions = $fallbackPhpExtensions
+}
+
 $rootPath = Join-Path $env:USERPROFILE ".phpkg"
 $tempPath = Join-Path $env:TEMP "phpkg-install-$(New-Guid)"
 
@@ -32,15 +88,15 @@ try {
     if (-not $phpInstalled) {
         Write-ErrorMsg "PHP is not installed or not found in PATH."
         Write-Info ""
-        Write-Info "Please install PHP 8.1 or higher manually:"
+        Write-Info "Please install PHP $phpMinVersion or higher manually:"
         Write-Info "  1. Download from https://windows.php.net/download/"
         Write-Info "  2. Extract to a directory (e.g., C:\php)"
         Write-Info "  3. Add PHP directory to your PATH environment variable"
         Write-Info "  4. Copy php.ini-development to php.ini in the PHP directory"
         Write-Info "  5. Enable required extensions in php.ini:"
-        Write-Info "     - extension=php_mbstring.dll"
-        Write-Info "     - extension=php_curl.dll"
-        Write-Info "     - extension=php_zip.dll"
+        foreach ($ext in $phpExtensions) {
+            Write-Info "     - extension=php_$ext.dll"
+        }
         Write-Info "  6. Set extension_dir = `"ext`" in php.ini"
         Write-Info ""
         Write-Info "After installing PHP, run this installation script again."
@@ -48,13 +104,13 @@ try {
     }
 
     # Verify PHP version
-    $requiredVersion = [Version]"8.1"
+    $requiredVersion = [Version]$phpMinVersion
     $currentVersion = [Version]$phpVersion
 
     if ($currentVersion -ge $requiredVersion) {
         Write-Success "PHP $phpVersion detected"
     } else {
-        Write-ErrorMsg "PHP version $phpVersion detected, but phpkg requires PHP >= 8.1."
+        Write-ErrorMsg "PHP version $phpVersion detected, but phpkg requires PHP >= $phpMinVersion."
         Write-Info "Please upgrade PHP and run this installation script again."
         exit 1
     }
@@ -64,14 +120,10 @@ try {
     $phpModules = php -m 2>&1 | Out-String
     
     $missingExtensions = @()
-    if ($phpModules -notmatch "mbstring") {
-        $missingExtensions += "mbstring"
-    }
-    if ($phpModules -notmatch "curl") {
-        $missingExtensions += "curl"
-    }
-    if ($phpModules -notmatch "zip") {
-        $missingExtensions += "zip"
+    foreach ($ext in $phpExtensions) {
+        if ($phpModules -notmatch "^$ext$") {
+            $missingExtensions += $ext
+        }
     }
 
     if ($missingExtensions.Count -gt 0) {
