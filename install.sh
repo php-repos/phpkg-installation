@@ -77,9 +77,9 @@ if ! command -v php &> /dev/null; then
         if [ "$ID" = "alpine" ]; then
             for ver in 83 82 81 8; do
                 if [ -f "/usr/bin/php${ver}" ]; then
-                    PHP_CMD="/usr/bin/php${ver}"
-                    # Try to create symlink for convenience
-                    ln -sf "/usr/bin/php${ver}" /usr/bin/php 2>/dev/null || true
+                    # Create symlink so 'php' command is available (needed for phpkg script shebang)
+                    ln -sf "/usr/bin/php${ver}" /usr/bin/php
+                    PHP_CMD="php"
                     break
                 fi
             done
@@ -146,9 +146,11 @@ if [ "$PHP_CMD" = "php" ] && ! command -v php &> /dev/null; then
                     echo "Warning: Could not install PHP with extensions. You may need to install manually."
                 else
                     # On Alpine, php83 installs /usr/bin/php83, not /usr/bin/php
-                    # Use the versioned binary directly (full path)
+                    # Create a symlink so 'php' command is available (needed for phpkg script shebang)
                     if [ -n "$INSTALLED_VER" ] && [ -f "/usr/bin/php${INSTALLED_VER}" ]; then
-                        PHP_CMD="/usr/bin/php${INSTALLED_VER}"
+                        # Create symlink so phpkg script can execute (it uses #!/usr/bin/env php)
+                        ln -sf "/usr/bin/php${INSTALLED_VER}" /usr/bin/php
+                        PHP_CMD="php"
                     fi
                 fi
                 ;;
