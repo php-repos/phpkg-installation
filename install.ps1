@@ -121,7 +121,8 @@ try {
     
     $missingExtensions = @()
     foreach ($ext in $phpExtensions) {
-        if ($phpModules -notmatch "^$ext$") {
+        # Check if extension is loaded (match whole word to avoid partial matches)
+        if ($phpModules -notmatch "\b$ext\b") {
             $missingExtensions += $ext
         }
     }
@@ -167,12 +168,12 @@ try {
 
     Write-Info "Setting up..."
     
-    # Backup credentials.json if it exists
+    # Preserve credentials.json if it exists (user may have configured it)
     $existingCredentials = $null
     if ($isUpdate) {
         $existingCredentialsPath = Join-Path $rootPath "credentials.json"
         if (Test-Path $existingCredentialsPath) {
-            Write-Info "Backing up existing credentials.json..."
+            Write-Info "Preserving existing credentials.json..."
             $existingCredentials = Get-Content -Path $existingCredentialsPath -Raw
         }
     }
@@ -194,13 +195,13 @@ try {
         exit 1
     }
 
-    # Restore or create credentials.json
+    # Restore existing credentials if we had them, otherwise create from example
     Write-Info "Setting up credential file"
     $credentialsExample = Join-Path $rootPath "credentials.example.json"
     $credentials = Join-Path $rootPath "credentials.json"
     
     if ($existingCredentials) {
-        Write-Info "Restoring credentials.json from backup..."
+        Write-Info "Restoring existing credentials.json..."
         Set-Content -Path $credentials -Value $existingCredentials -NoNewline
     } elseif (Test-Path $credentialsExample) {
         Write-Info "Creating credentials.json from example..."
@@ -210,10 +211,12 @@ try {
     # Create Windows batch wrapper for phpkg
     Write-Info "Creating Windows batch wrapper..."
     $phpkgBatPath = Join-Path $rootPath "phpkg.bat"
-    $phpkgPhpPath = Join-Path $rootPath "phpkg"
+    # Use %~dp0 to get the batch file's directory and properly handle paths with spaces
+    # Pass through exit codes to the calling process
     $batchContent = @"
 @echo off
-php "$phpkgPhpPath" %*
+php "%~dp0phpkg" %*
+exit /b %ERRORLEVEL%
 "@
     Set-Content -Path $phpkgBatPath -Value $batchContent -Encoding ASCII
 
@@ -240,7 +243,7 @@ php "$phpkgPhpPath" %*
     } else {
         Write-Success "`nInstallation finished successfully. Enjoy."
     }
-    Write-Warning "Note: You may need to restart your terminal for PATH changes to take effect."
+    Write-Info "Note: You may need to restart your terminal for PATH changes to take effect."
     Write-Info ""
     Write-Info "To update phpkg in the future, simply run this installation script again."
     

@@ -147,7 +147,7 @@ done
 
 # Verify all extensions are now loaded
 for ext in $php_extensions; do
-    if ! php -m | grep -q "^${ext}$"; then
+    if ! php -m | grep -qE "^\s*${ext}\s*$"; then
         echo -e "${RED}Error: ${ext} extension is required but could not be installed. Please install it manually.${DEFAULT_COLOR}"
         exit 1
     fi
