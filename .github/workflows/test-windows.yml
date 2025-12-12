@@ -32,7 +32,7 @@ jobs:
       - name: Install phpkg
         shell: pwsh
         run: |
-          Invoke-WebRequest -Uri "https://raw.github.com/php-repos/phpkg-installation/${{ github.event.pull_request.head.ref || github.ref_name }}/install.ps1" -OutFile install.ps1 -UseBasicParsing
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/php-repos/phpkg-installation/${{ github.event.pull_request.head.ref || github.ref_name }}/install.ps1" -OutFile install.ps1 -UseBasicParsing
           powershell -ExecutionPolicy Bypass -File install.ps1
           $phpkgPath = "$env:USERPROFILE\.phpkg"
           if (Test-Path $phpkgPath) {

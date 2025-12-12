@@ -1,5 +1,7 @@
 #Requires -Version 5.1
 
+# Set error action preference to stop on errors
+# Critical commands are wrapped in try-catch blocks to handle expected failures gracefully
 $ErrorActionPreference = "Stop"
 
 # Colors for output

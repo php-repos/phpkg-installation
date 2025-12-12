@@ -232,8 +232,9 @@ for ext in $php_extensions; do
                     fi
                     
                     # Get PHP version from installed PHP (should be available after main installation)
+                    # Use $PHP_CMD which was set during the main PHP installation
                     PHP_VER=""
-                    if command -v php &> /dev/null || [ -n "$PHP_CMD" ]; then
+                    if [ -n "$PHP_CMD" ]; then
                         PHP_VER=$($PHP_CMD -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
                     fi
                     
@@ -340,10 +341,19 @@ eval $EXPORT_PATH
 check_path_in_file() {
     local file="$1"
     if [ -f "$file" ]; then
-        # Check for the exact export statement or path in PATH variable
-        grep -qF "PATH=\"\$PATH:$root_path\"" "$file" 2>/dev/null || \
-        grep -qF "PATH=\$PATH:$root_path" "$file" 2>/dev/null || \
-        grep -qF ":$root_path" "$file" 2>/dev/null
+        # Check for the exact export statement (most specific first)
+        # This avoids false positives from comments or other contexts
+        if grep -qF "PATH=\"\$PATH:$root_path\"" "$file" 2>/dev/null || \
+           grep -qF "PATH=\$PATH:$root_path" "$file" 2>/dev/null; then
+            return 0
+        fi
+        # Fallback: check if path appears as a PATH entry (with leading colon or at start/end)
+        # Escape special characters in path for regex matching
+        local escaped_path=$(echo "$root_path" | sed 's/[[\.*^$()+?{|]/\\&/g')
+        if grep -qE "(^|:)$escaped_path(:|$)" "$file" 2>/dev/null; then
+            return 0
+        fi
+        return 1
     else
         return 1
     fi
