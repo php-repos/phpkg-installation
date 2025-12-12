@@ -86,12 +86,39 @@ then
             arch)
                 echo "Detected Arch Linux"
                 sudo pacman -Syu --noconfirm
-                sudo pacman -S --noconfirm php php-mbstring php-curl php-zip
+                # On Arch Linux, PHP extensions (mbstring, curl, zip) are built into the main php package
+                sudo pacman -S --noconfirm php
                 ;;
             alpine)
                 echo "Detected Alpine Linux"
                 apk update
-                apk add php php-mbstring php-curl php-zip
+                # Alpine uses versioned package names like php83-mbstring for PHP 8.3
+                # Try to detect PHP version if available, otherwise try common versions
+                PHP_VER=""
+                if command -v php &> /dev/null; then
+                    PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
+                fi
+                
+                # Try to install PHP and extensions with detected or common versions
+                INSTALLED=false
+                if [ -n "$PHP_VER" ] && [ "$PHP_VER" != "8" ]; then
+                    # Try detected version first
+                    apk add "php${PHP_VER}" "php${PHP_VER}-mbstring" "php${PHP_VER}-curl" "php${PHP_VER}-zip" 2>/dev/null && INSTALLED=true
+                fi
+                
+                # Fallback: try common versions if not installed yet
+                if [ "$INSTALLED" = false ]; then
+                    for ver in 83 82 81 8; do
+                        if apk add "php${ver}" "php${ver}-mbstring" "php${ver}-curl" "php${ver}-zip" 2>/dev/null; then
+                            INSTALLED=true
+                            break
+                        fi
+                    done
+                fi
+                
+                if [ "$INSTALLED" = false ]; then
+                    echo "Warning: Could not install PHP with extensions. You may need to install manually."
+                fi
                 ;;
         esac
     elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -132,10 +159,31 @@ for ext in $php_extensions; do
                     sudo dnf install -y "php-${ext}"
                     ;;
                 arch)
-                    sudo pacman -S --noconfirm "php-${ext}"
+                    # On Arch Linux, extensions are built into php package
+                    # They just need to be enabled in php.ini, which is usually done by default
+                    echo "On Arch Linux, ${ext} should be available in the php package. If not, check php.ini configuration."
                     ;;
                 alpine)
-                    apk add "php-${ext}"
+                    # Alpine uses versioned package names
+                    PHP_VER=""
+                    if command -v php &> /dev/null; then
+                        PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
+                    fi
+                    
+                    INSTALLED=false
+                    if [ -n "$PHP_VER" ] && [ "$PHP_VER" != "8" ]; then
+                        apk add "php${PHP_VER}-${ext}" 2>/dev/null && INSTALLED=true
+                    fi
+                    
+                    # Fallback: try common versions if not installed yet
+                    if [ "$INSTALLED" = false ]; then
+                        for ver in 83 82 81 8; do
+                            if apk add "php${ver}-${ext}" 2>/dev/null; then
+                                INSTALLED=true
+                                break
+                            fi
+                        done
+                    fi
                     ;;
             esac
         elif [[ "$OSTYPE" == "darwin"* ]]; then
@@ -181,10 +229,12 @@ echo -e "${GREEN}Download finished${DEFAULT_COLOR}"
 echo "Setting up..."
 
 # Preserve credentials.json if it exists (user may have configured it)
-existing_credentials=""
+existing_credentials_path=""
 if [ "$is_update" = true ] && [ -f "$root_path/credentials.json" ]; then
     echo "Preserving existing credentials.json..."
-    existing_credentials=$(cat "$root_path/credentials.json")
+    # Use a temporary file to avoid command injection risks
+    existing_credentials_path=$(mktemp)
+    cp "$root_path/credentials.json" "$existing_credentials_path"
 fi
 
 rm -fR "$root_path"
@@ -192,9 +242,10 @@ unzip -q -o "$temp_path"/phpkg.zip -d "$temp_path"
 mv "$temp_path"/production "$root_path"
 
 # Restore existing credentials if we had them, otherwise create from example
-if [ -n "$existing_credentials" ]; then
+if [ -n "$existing_credentials_path" ] && [ -f "$existing_credentials_path" ]; then
     echo "Restoring existing credentials.json..."
-    echo "$existing_credentials" > "$root_path/credentials.json"
+    cp "$existing_credentials_path" "$root_path/credentials.json"
+    rm -f "$existing_credentials_path"
 else
     echo "Creating credentials.json from example..."
     cp "$root_path"/credentials.example.json "$root_path"/credentials.json
