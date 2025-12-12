@@ -1,0 +1,45 @@
+name: test-windows
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  test:
+    runs-on: windows-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [windows-latest]
+
+    name: test windows
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.4
+          extensions: curl, mbstring, zip
+          coverage: none
+
+      - name: Install phpkg
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://raw.github.com/php-repos/phpkg-installation/${{ github.event.pull_request.head.ref || github.ref_name }}/install.ps1" -OutFile install.ps1 -UseBasicParsing
+          powershell -ExecutionPolicy Bypass -File install.ps1
+          $phpkgPath = "$env:USERPROFILE\.phpkg"
+          if (Test-Path $phpkgPath) {
+            echo "$phpkgPath" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+      - name: Test phpkg
+        shell: pwsh
+        run: phpkg credential github.com ${{ secrets.GITHUB_TOKEN }}
+
