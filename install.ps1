@@ -22,7 +22,7 @@ if (-not (Test-Path $configFile)) {
     # If running from curl/download, try to download config.json from the same repository
     $tempConfigFile = Join-Path $env:TEMP "phpkg-config-$(New-Guid).json"
     try {
-        Invoke-WebRequest -Uri "https://raw.github.com/php-repos/phpkg-installation/master/config.json" -OutFile $tempConfigFile -UseBasicParsing -ErrorAction Stop
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/php-repos/phpkg-installation/master/config.json" -OutFile $tempConfigFile -UseBasicParsing -ErrorAction Stop
         if (Test-Path $tempConfigFile) {
             $configFile = $tempConfigFile
         } else {
@@ -117,12 +117,17 @@ try {
 
     # Check required PHP extensions
     Write-Info "Checking required PHP extensions..."
-    $phpModules = php -m 2>&1 | Out-String
+    try {
+        $phpModules = php -m 2>&1 | Out-String
+    } catch {
+        Write-ErrorMsg "Failed to get PHP modules list: $_"
+        exit 1
+    }
     
     $missingExtensions = @()
     foreach ($ext in $phpExtensions) {
-        # Check if extension is loaded (match whole word to avoid partial matches)
-        if ($phpModules -notmatch "\b$ext\b") {
+        # Check if extension is loaded (case-insensitive, match whole word, handle whitespace)
+        if ($phpModules -notmatch "(?m)^\s*$ext\s*$") {
             $missingExtensions += $ext
         }
     }
@@ -159,7 +164,14 @@ try {
     $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$phpkgVersion/phpkg.zip"
     
     try {
-        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
+        
+        # Verify the downloaded file exists and has content
+        if (-not (Test-Path $zipPath) -or (Get-Item $zipPath).Length -eq 0) {
+            Write-ErrorMsg "Downloaded file is empty or missing."
+            exit 1
+        }
+        
         Write-Success "Download finished"
     } catch {
         Write-ErrorMsg "Failed to download phpkg: $_"
@@ -224,7 +236,17 @@ exit /b %ERRORLEVEL%
     $phpkgBinPath = $rootPath
     $currentUserPath = [Environment]::GetEnvironmentVariable("Path", "User")
     
-    if ($currentUserPath -notlike "*$phpkgBinPath*") {
+    # Check if path is already in PATH (more precise check to avoid false positives)
+    $pathEntries = $currentUserPath -split ';' | Where-Object { $_ -ne '' }
+    $pathExists = $false
+    foreach ($entry in $pathEntries) {
+        if ($entry -eq $phpkgBinPath) {
+            $pathExists = $true
+            break
+        }
+    }
+    
+    if (-not $pathExists) {
         Write-Info "Adding phpkg to PATH"
         $newPath = $currentUserPath
         if ($newPath -and -not $newPath.EndsWith(";")) {

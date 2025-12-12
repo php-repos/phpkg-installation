@@ -35,7 +35,7 @@ if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/config.json" ]; then
 else
     # If running from curl or config.json not found, try to download it from the repository
     TEMP_CONFIG_FILE=$(mktemp)
-    if curl -s -L "https://raw.github.com/php-repos/phpkg-installation/master/config.json" -o "$TEMP_CONFIG_FILE" 2>/dev/null && [ -f "$TEMP_CONFIG_FILE" ] && [ -s "$TEMP_CONFIG_FILE" ]; then
+    if curl -s -L "https://raw.githubusercontent.com/php-repos/phpkg-installation/master/config.json" -o "$TEMP_CONFIG_FILE" 2>/dev/null && [ -f "$TEMP_CONFIG_FILE" ] && [ -s "$TEMP_CONFIG_FILE" ]; then
         CONFIG_FILE="$TEMP_CONFIG_FILE"
     else
         # Config file not available, use fallback values
@@ -131,11 +131,8 @@ if [ "$PHP_CMD" = "php" ] && ! command -v php &> /dev/null; then
                 
                 $APK_CMD update
                 # Alpine uses versioned package names like php83-mbstring for PHP 8.3
-                # Try to detect PHP version if available, otherwise try common versions
+                # Note: PHP is not installed yet at this point, so we'll try common versions
                 PHP_VER=""
-                if command -v php &> /dev/null; then
-                    PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
-                fi
                 
                 # Try to install PHP and extensions with detected or common versions
                 INSTALLED=false
@@ -200,7 +197,8 @@ fi
 echo "Checking required PHP extensions..."
 missing_extensions=""
 for ext in $php_extensions; do
-    if ! $PHP_CMD -m 2>/dev/null | grep -qE "^\s*${ext}\s*$"; then
+    # Use case-insensitive matching for extension names
+    if ! $PHP_CMD -m 2>/dev/null | grep -qiE "^\s*${ext}\s*$"; then
         echo -e "${YELLOW}Warning: ${ext} extension is not loaded. Attempting to install...${DEFAULT_COLOR}"
         missing_extensions="$missing_extensions $ext"
         
@@ -233,9 +231,10 @@ for ext in $php_extensions; do
                         fi
                     fi
                     
+                    # Get PHP version from installed PHP (should be available after main installation)
                     PHP_VER=""
-                    if command -v php &> /dev/null; then
-                        PHP_VER=$(php -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
+                    if command -v php &> /dev/null || [ -n "$PHP_CMD" ]; then
+                        PHP_VER=$($PHP_CMD -r 'echo PHP_MAJOR_VERSION . PHP_MINOR_VERSION;' 2>/dev/null || echo "")
                     fi
                     
                     INSTALLED=false
@@ -262,8 +261,10 @@ for ext in $php_extensions; do
 done
 
 # Verify all extensions are now loaded
+# Use case-insensitive matching and look for extensions in the PHP Modules section
 for ext in $php_extensions; do
-    if ! $PHP_CMD -m 2>/dev/null | grep -qE "^\s*${ext}\s*$"; then
+    # Get PHP modules output and check if extension is listed (case-insensitive, whole word)
+    if ! $PHP_CMD -m 2>/dev/null | grep -qiE "^\s*${ext}\s*$"; then
         echo -e "${RED}Error: ${ext} extension is required but could not be installed. Please install it manually.${DEFAULT_COLOR}"
         exit 1
     fi
@@ -290,7 +291,16 @@ else
 fi
 
 echo -e "Downloading phpkg"
-curl -s -L "https://github.com/php-repos/phpkg/releases/download/$phpkg_version/phpkg.zip" -o "$temp_path/phpkg.zip"
+if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$phpkg_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
+    echo -e "${RED}Error: Failed to download phpkg. Please check your internet connection and try again.${DEFAULT_COLOR}"
+    exit 1
+fi
+
+# Verify the downloaded file exists and has content
+if [ ! -f "$temp_path/phpkg.zip" ] || [ ! -s "$temp_path/phpkg.zip" ]; then
+    echo -e "${RED}Error: Downloaded file is empty or missing.${DEFAULT_COLOR}"
+    exit 1
+fi
 
 echo -e "${GREEN}Download finished${DEFAULT_COLOR}"
 
@@ -326,22 +336,35 @@ EXPORT_PATH="export PATH=\"\$PATH:$root_path\""
 eval $EXPORT_PATH
 
 # Add to initialization file based on shell (only if not already present)
+# Use a more specific pattern to match the actual export statement
+check_path_in_file() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        # Check for the exact export statement or path in PATH variable
+        grep -qF "PATH=\"\$PATH:$root_path\"" "$file" 2>/dev/null || \
+        grep -qF "PATH=\$PATH:$root_path" "$file" 2>/dev/null || \
+        grep -qF ":$root_path" "$file" 2>/dev/null
+    else
+        return 1
+    fi
+}
+
 if echo "$DEFAULT_SHELL" | grep -q "zsh"; then
-    if ! grep -q "$root_path" "$HOME/.zshrc" 2>/dev/null; then
+    if ! check_path_in_file "$HOME/.zshrc"; then
         echo "Add phpkg to zsh"
         echo "$EXPORT_PATH" >> "$HOME/.zshrc"
     else
         echo "phpkg is already in your zsh configuration"
     fi
 elif echo "$DEFAULT_SHELL" | grep -q "bash"; then
-    if ! grep -q "$root_path" "$HOME/.bashrc" 2>/dev/null; then
+    if ! check_path_in_file "$HOME/.bashrc"; then
         echo "Add phpkg to bash"
         echo "$EXPORT_PATH" >> "$HOME/.bashrc"
     else
         echo "phpkg is already in your bash configuration"
     fi
 elif echo "$DEFAULT_SHELL" | grep -q "sh"; then
-    if ! grep -q "$root_path" "$HOME/.profile" 2>/dev/null; then
+    if ! check_path_in_file "$HOME/.profile"; then
         echo "Add phpkg to sh"
         echo "$EXPORT_PATH" >> "$HOME/.profile"  # Use .profile for sh in Alpine
     else
@@ -349,7 +372,7 @@ elif echo "$DEFAULT_SHELL" | grep -q "sh"; then
     fi
 else
     echo "Unsupported shell detected: $DEFAULT_SHELL"
-    if ! grep -q "$root_path" "$HOME/.profile" 2>/dev/null; then
+    if ! check_path_in_file "$HOME/.profile"; then
         echo "$EXPORT_PATH" >> "$HOME/.profile"  # Fallback to .profile for unsupported shells
     fi
 fi

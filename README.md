@@ -14,7 +14,7 @@ There are no prerequisites if you have Arch, Fedora, Mac, Ubuntu, or are using D
 
 Before you begin, ensure that the following prerequisites are met:
 
-1. **PHP 8.1 or higher**: PHP must be installed on your system. To check your PHP version, run `php --version`. You should see "PHP 8.1" or a higher version.
+1. **PHP 8.2 or higher**: PHP must be installed on your system. To check your PHP version, run `php --version`. You should see "PHP 8.2" or a higher version.
 2. **Required PHP extensions**: The following PHP extensions must be enabled:
    - `mbstring` (required)
    - `curl` (required)
@@ -32,7 +32,7 @@ by running `unzip --version`. If it's not installed, you can typically install i
 To install `phpkg` on Linux or macOS, you can run the following command in your terminal:
 
 ```shell
-bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/master/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/php-repos/phpkg-installation/master/install.sh)"
 ```
 
 ### Windows
@@ -69,14 +69,14 @@ bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/master
 Once PHP and extensions are configured, open PowerShell and run:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.github.com/php-repos/phpkg-installation/master/install.ps1' -OutFile install.ps1; .\install.ps1"
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/php-repos/phpkg-installation/master/install.ps1' -OutFile install.ps1; .\install.ps1"
 ```
 
 Or if you prefer to download and run it manually:
 
 ```powershell
 # Download the script
-Invoke-WebRequest -Uri 'https://raw.github.com/php-repos/phpkg-installation/master/install.ps1' -OutFile install.ps1
+Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/php-repos/phpkg-installation/master/install.ps1' -OutFile install.ps1
 
 # Run the script (bypasses execution policy for this session)
 powershell -ExecutionPolicy Bypass -File .\install.ps1
@@ -142,12 +142,12 @@ To update `phpkg` to the latest version, simply **rerun the installation script*
 
 **Linux/macOS:**
 ```shell
-bash -c "$(curl -fsSL https://raw.github.com/php-repos/phpkg-installation/master/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/php-repos/phpkg-installation/master/install.sh)"
 ```
 
 **Windows:**
 ```powershell
-powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.github.com/php-repos/phpkg-installation/master/install.ps1' -OutFile install.ps1; .\install.ps1"
+powershell -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/php-repos/phpkg-installation/master/install.ps1' -OutFile install.ps1; .\install.ps1"
 ```
 
 **Verify the Update:**
