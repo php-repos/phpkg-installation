@@ -200,12 +200,12 @@ try {
     # Extract zip file
     Expand-Archive -Path $zipPath -DestinationPath $tempPath -Force
     
-    # Move production directory to root path
-    $productionPath = Join-Path $tempPath "production"
-    if (Test-Path $productionPath) {
-        Move-Item -Path $productionPath -Destination $rootPath -Force
+    # Move build directory to root path
+    $buildPath = Join-Path $tempPath "build"
+    if (Test-Path $buildPath) {
+        Move-Item -Path $buildPath -Destination $rootPath -Force
     } else {
-        Write-ErrorMsg "Production directory not found in downloaded archive"
+        Write-ErrorMsg "Build directory not found in downloaded archive"
         exit 1
     }
 
