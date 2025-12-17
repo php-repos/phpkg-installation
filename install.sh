@@ -320,6 +320,11 @@ rm -fR "$root_path"
 unzip -q -o "$temp_path"/phpkg.zip -d "$temp_path"
 mv "$temp_path"/build "$root_path"
 
+# Make phpkg binary executable
+if [ -f "$root_path/phpkg" ]; then
+    chmod +x "$root_path/phpkg"
+fi
+
 # Restore existing credentials if we had them, otherwise create from example
 if [ -n "$existing_credentials_path" ] && [ -f "$existing_credentials_path" ]; then
     echo "Restoring existing credentials.json..."
