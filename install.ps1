@@ -10,58 +10,40 @@ function Write-ErrorMsg { param($Message) Write-Host $Message -ForegroundColor R
 function Write-Warning { param($Message) Write-Host $Message -ForegroundColor Yellow }
 function Write-Info { param($Message) Write-Host $Message }
 
-# Load configuration from config.json with fallback values
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$configFile = Join-Path $scriptDir "config.json"
-
-# Fallback values (used when config.json is not available)
-$fallbackPhpkgVersion = "v2.2.2"
+# Load configuration from inline JSON with fallback values
+# Fallback values (used when parsing fails)
+$fallbackPhpkgVersion = "v3.0.0-rc1"
 $fallbackPhpMinVersion = "8.1"
 $fallbackPhpExtensions = @("mbstring", "curl", "zip")
 
-$tempConfigFile = $null
-if (-not (Test-Path $configFile)) {
-    # If running from curl/download, try to download config.json from the same repository
-    $tempConfigFile = Join-Path $env:TEMP "phpkg-config-$(New-Guid).json"
-    try {
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/php-repos/phpkg-installation/master/config.json" -OutFile $tempConfigFile -UseBasicParsing -ErrorAction Stop
-        if (Test-Path $tempConfigFile) {
-            $configFile = $tempConfigFile
-        } else {
-            $configFile = $null
-        }
-    } catch {
-        # Config file not available, will use fallback values
-        $configFile = $null
-    }
+# Inline configuration JSON
+$configJson = @'
+{
+  "phpkg_version": "v3.0.0",
+  "php_min_version": "8.2",
+  "php_extensions": [
+    "mbstring",
+    "curl",
+    "zip"
+  ]
 }
+'@
 
-if ($configFile -and (Test-Path $configFile)) {
-    try {
-        $config = Get-Content -Path $configFile -Raw | ConvertFrom-Json
-        $phpkgVersion = $config.phpkg_version
-        $phpMinVersion = $config.php_min_version
-        $phpExtensions = $config.php_extensions
-        
-        # Use fallback if parsing failed or values are missing
-        if (-not $phpkgVersion -or -not $phpMinVersion -or -not $phpExtensions) {
-            $phpkgVersion = $fallbackPhpkgVersion
-            $phpMinVersion = $fallbackPhpMinVersion
-            $phpExtensions = $fallbackPhpExtensions
-        }
-    } catch {
-        # Parsing failed, use fallback values
+# Parse inline config JSON, fallback to defaults if parsing fails
+try {
+    $config = $configJson | ConvertFrom-Json
+    $phpkgVersion = $config.phpkg_version
+    $phpMinVersion = $config.php_min_version
+    $phpExtensions = $config.php_extensions
+    
+    # Use fallback if parsing failed or values are missing
+    if (-not $phpkgVersion -or -not $phpMinVersion -or -not $phpExtensions) {
         $phpkgVersion = $fallbackPhpkgVersion
         $phpMinVersion = $fallbackPhpMinVersion
         $phpExtensions = $fallbackPhpExtensions
-    } finally {
-        # Cleanup temp config file if we downloaded it
-        if ($tempConfigFile -and (Test-Path $tempConfigFile)) {
-            Remove-Item -Path $tempConfigFile -Force -ErrorAction SilentlyContinue
-        }
     }
-} else {
-    # Config file not available, use fallback values
+} catch {
+    # Parsing failed, use fallback values
     $phpkgVersion = $fallbackPhpkgVersion
     $phpMinVersion = $fallbackPhpMinVersion
     $phpExtensions = $fallbackPhpExtensions
@@ -163,22 +145,42 @@ try {
     Write-Info "Downloading phpkg"
     
     $zipPath = Join-Path $tempPath "phpkg.zip"
-    $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$phpkgVersion/phpkg.zip"
+    $mainVersion = $phpkgVersion
+    $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$mainVersion/phpkg.zip"
     
+    $downloadSuccess = $false
     try {
         Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
         
         # Verify the downloaded file exists and has content
-        if (-not (Test-Path $zipPath) -or (Get-Item $zipPath).Length -eq 0) {
-            Write-ErrorMsg "Downloaded file is empty or missing."
+        if ((Test-Path $zipPath) -and (Get-Item $zipPath).Length -gt 0) {
+            $downloadSuccess = $true
+        }
+    } catch {
+        # Try fallback version if main version doesn't exist
+        Write-Warning "Version $mainVersion not found, trying fallback version $fallbackPhpkgVersion..."
+        $phpkgVersion = $fallbackPhpkgVersion
+        $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$phpkgVersion/phpkg.zip"
+        
+        try {
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
+            
+            # Verify the downloaded file exists and has content
+            if ((Test-Path $zipPath) -and (Get-Item $zipPath).Length -gt 0) {
+                $downloadSuccess = $true
+            }
+        } catch {
+            Write-ErrorMsg "Failed to download phpkg: $_"
             exit 1
         }
-        
-        Write-Success "Download finished"
-    } catch {
-        Write-ErrorMsg "Failed to download phpkg: $_"
+    }
+    
+    if (-not $downloadSuccess) {
+        Write-ErrorMsg "Downloaded file is empty or missing."
         exit 1
     }
+    
+    Write-Success "Download finished"
 
     Write-Info "Setting up..."
     
