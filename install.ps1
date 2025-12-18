@@ -19,7 +19,7 @@ $fallbackPhpExtensions = @("mbstring", "curl", "zip")
 # Inline configuration JSON
 $configJson = @'
 {
-  "phpkg_version": "v3.0.1",
+  "phpkg_version": "v3.0.0",
   "php_min_version": "8.2",
   "php_extensions": [
     "mbstring",
@@ -145,22 +145,42 @@ try {
     Write-Info "Downloading phpkg"
     
     $zipPath = Join-Path $tempPath "phpkg.zip"
-    $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$phpkgVersion/phpkg.zip"
+    $mainVersion = $phpkgVersion
+    $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$mainVersion/phpkg.zip"
     
+    $downloadSuccess = $false
     try {
         Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
         
         # Verify the downloaded file exists and has content
-        if (-not (Test-Path $zipPath) -or (Get-Item $zipPath).Length -eq 0) {
-            Write-ErrorMsg "Downloaded file is empty or missing."
+        if ((Test-Path $zipPath) -and (Get-Item $zipPath).Length -gt 0) {
+            $downloadSuccess = $true
+        }
+    } catch {
+        # Try fallback version if main version doesn't exist
+        Write-Warning "Version $mainVersion not found, trying fallback version $fallbackPhpkgVersion..."
+        $phpkgVersion = $fallbackPhpkgVersion
+        $downloadUrl = "https://github.com/php-repos/phpkg/releases/download/$phpkgVersion/phpkg.zip"
+        
+        try {
+            Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath -UseBasicParsing -ErrorAction Stop
+            
+            # Verify the downloaded file exists and has content
+            if ((Test-Path $zipPath) -and (Get-Item $zipPath).Length -gt 0) {
+                $downloadSuccess = $true
+            }
+        } catch {
+            Write-ErrorMsg "Failed to download phpkg: $_"
             exit 1
         }
-        
-        Write-Success "Download finished"
-    } catch {
-        Write-ErrorMsg "Failed to download phpkg: $_"
+    }
+    
+    if (-not $downloadSuccess) {
+        Write-ErrorMsg "Downloaded file is empty or missing."
         exit 1
     }
+    
+    Write-Success "Download finished"
 
     Write-Info "Setting up..."
     

@@ -27,7 +27,7 @@ FALLBACK_PHP_EXTENSIONS="mbstring curl zip"
 # Inline configuration JSON
 CONFIG_JSON=$(cat <<'EOF'
 {
-  "phpkg_version": "v3.0.1",
+  "phpkg_version": "v3.0.0",
   "php_min_version": "8.2",
   "php_extensions": [
     "mbstring",
@@ -274,9 +274,15 @@ else
 fi
 
 echo -e "Downloading phpkg"
-if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$phpkg_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
-    echo -e "${RED}Error: Failed to download phpkg. Please check your internet connection and try again.${DEFAULT_COLOR}"
-    exit 1
+# Try main version first, fallback to FALLBACK_PHPKG_VERSION if it doesn't exist
+main_version="$phpkg_version"
+if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$main_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
+    echo -e "${YELLOW}Version $main_version not found, trying fallback version $FALLBACK_PHPKG_VERSION...${DEFAULT_COLOR}"
+    phpkg_version="$FALLBACK_PHPKG_VERSION"
+    if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$phpkg_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
+        echo -e "${RED}Error: Failed to download phpkg. Please check your internet connection and try again.${DEFAULT_COLOR}"
+        exit 1
+    fi
 fi
 
 # Verify the downloaded file exists and has content
