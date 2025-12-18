@@ -18,36 +18,54 @@ root_path=$HOME/.phpkg
 # PHP command wrapper - will be set to actual PHP binary if needed
 PHP_CMD="php"
 
-# Load configuration from inline JSON with fallback values
-# Fallback values (used when parsing fails)
-FALLBACK_PHPKG_VERSION="v3.0.0-rc1"
+# Load configuration from config.json with fallback values
+# Try to find config.json in the same directory as the script
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+CONFIG_FILE=""
+TEMP_CONFIG_FILE=""
+
+# Fallback values (used when config.json is not available)
+FALLBACK_PHPKG_VERSION="v2.2.2"
 FALLBACK_PHP_MIN_VERSION="8.1"
 FALLBACK_PHP_EXTENSIONS="mbstring curl zip"
 
-# Inline configuration JSON
-CONFIG_JSON=$(cat <<'EOF'
-{
-  "phpkg_version": "v3.0.0",
-  "php_min_version": "8.2",
-  "php_extensions": [
-    "mbstring",
-    "curl",
-    "zip"
-  ]
-}
-EOF
-)
+if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/config.json" ]; then
+    # Config file exists in the same directory as the script
+    CONFIG_FILE="$SCRIPT_DIR/config.json"
+else
+    # If running from curl or config.json not found, try to download it from the repository
+    TEMP_CONFIG_FILE=$(mktemp)
+    if curl -s -L "https://raw.githubusercontent.com/php-repos/phpkg-installation/master/config.json" -o "$TEMP_CONFIG_FILE" 2>/dev/null && [ -f "$TEMP_CONFIG_FILE" ] && [ -s "$TEMP_CONFIG_FILE" ]; then
+        CONFIG_FILE="$TEMP_CONFIG_FILE"
+    else
+        # Config file not available, use fallback values
+        CONFIG_FILE=""
+        rm -f "$TEMP_CONFIG_FILE" 2>/dev/null
+    fi
+fi
 
-# Parse inline config JSON, fallback to defaults if parsing fails
-phpkg_version=$(echo "$CONFIG_JSON" | grep -o '"phpkg_version"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)".*/\1/')
-php_min_version=$(echo "$CONFIG_JSON" | grep -o '"php_min_version"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)".*/\1/')
-php_extensions=$(echo "$CONFIG_JSON" | grep -o '"php_extensions"[[:space:]]*:\[[^]]*\]' | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ' ')
-
-# Use fallback if parsing failed
-if [ -z "$phpkg_version" ] || [ -z "$php_min_version" ]; then
+# Parse config.json if available, otherwise use fallback values
+if [ -n "$CONFIG_FILE" ] && [ -f "$CONFIG_FILE" ]; then
+    phpkg_version=$(grep -o '"phpkg_version"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" | sed 's/.*"\([^"]*\)".*/\1/')
+    php_min_version=$(grep -o '"php_min_version"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" | sed 's/.*"\([^"]*\)".*/\1/')
+    php_extensions=$(grep -o '"php_extensions"[[:space:]]*:\[[^]]*\]' "$CONFIG_FILE" | grep -o '"[^"]*"' | sed 's/"//g' | tr '\n' ' ')
+    
+    # Use fallback if parsing failed
+    if [ -z "$phpkg_version" ] || [ -z "$php_min_version" ]; then
+        phpkg_version="$FALLBACK_PHPKG_VERSION"
+        php_min_version="$FALLBACK_PHP_MIN_VERSION"
+        php_extensions="$FALLBACK_PHP_EXTENSIONS"
+    fi
+else
+    # Use fallback values
     phpkg_version="$FALLBACK_PHPKG_VERSION"
     php_min_version="$FALLBACK_PHP_MIN_VERSION"
     php_extensions="$FALLBACK_PHP_EXTENSIONS"
+fi
+
+# Cleanup temp config file if we downloaded it
+if [ -n "$TEMP_CONFIG_FILE" ] && [ -f "$TEMP_CONFIG_FILE" ]; then
+    rm -f "$TEMP_CONFIG_FILE" 2>/dev/null
 fi
 
 # Check if PHP is installed
@@ -274,15 +292,9 @@ else
 fi
 
 echo -e "Downloading phpkg"
-# Try main version first, fallback to FALLBACK_PHPKG_VERSION if it doesn't exist
-main_version="$phpkg_version"
-if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$main_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
-    echo -e "${YELLOW}Version $main_version not found, trying fallback version $FALLBACK_PHPKG_VERSION...${DEFAULT_COLOR}"
-    phpkg_version="$FALLBACK_PHPKG_VERSION"
-    if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$phpkg_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
-        echo -e "${RED}Error: Failed to download phpkg. Please check your internet connection and try again.${DEFAULT_COLOR}"
-        exit 1
-    fi
+if ! curl -s -L -f "https://github.com/php-repos/phpkg/releases/download/$phpkg_version/phpkg.zip" -o "$temp_path/phpkg.zip"; then
+    echo -e "${RED}Error: Failed to download phpkg. Please check your internet connection and try again.${DEFAULT_COLOR}"
+    exit 1
 fi
 
 # Verify the downloaded file exists and has content
