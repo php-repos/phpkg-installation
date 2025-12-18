@@ -318,7 +318,7 @@ fi
 
 rm -fR "$root_path"
 unzip -q -o "$temp_path"/phpkg.zip -d "$temp_path"
-mv "$temp_path"/build "$root_path"
+mv "$temp_path"/production "$root_path"
 
 # Restore existing credentials if we had them, otherwise create from example
 if [ -n "$existing_credentials_path" ] && [ -f "$existing_credentials_path" ]; then
