@@ -1,6 +1,6 @@
 {
-  "phpkg_version": "v2.2.2",
-  "php_min_version": "8.1",
+  "phpkg_version": "v3.0.2.rc1",
+  "php_min_version": "8.2",
   "php_extensions": [
     "mbstring",
     "curl",
