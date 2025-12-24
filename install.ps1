@@ -15,7 +15,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configFile = Join-Path $scriptDir "config.json"
 
 # Fallback values (used when config.json is not available)
-$fallbackPhpkgVersion = "v3.0.2"
+$fallbackPhpkgVersion = "v3.1.0"
 $fallbackPhpMinVersion = "8.2"
 $fallbackPhpExtensions = @("mbstring", "curl", "zip")
 
