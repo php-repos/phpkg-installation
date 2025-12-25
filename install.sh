@@ -25,7 +25,7 @@ CONFIG_FILE=""
 TEMP_CONFIG_FILE=""
 
 # Fallback values (used when config.json is not available)
-FALLBACK_PHPKG_VERSION="v3.1.0"
+FALLBACK_PHPKG_VERSION="v3.1.1"
 FALLBACK_PHP_MIN_VERSION="8.2"
 FALLBACK_PHP_EXTENSIONS="mbstring curl zip"
 
